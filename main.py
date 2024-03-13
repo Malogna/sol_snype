@@ -53,26 +53,21 @@ ask_for_in_amount = str(input("Amount ($SOL) (number or all): "))
 print('Sending transaction...')
 time_start = time.time()
 
-try:
-    if ask_for_action == "b":
-        if ask_for_in_amount == "all":
-            sol_wal_balance = sol_wal.get_sol_balance()[0]*0.95
-            swap.buy(sol_wal_balance, SLIPPAGE, keypair)
-        else:
-            swap.buy(float(ask_for_in_amount), SLIPPAGE, keypair)
+if ask_for_action == "b":
+    if ask_for_in_amount == "all":
+        sol_wal_balance = sol_wal.get_sol_balance()*0.95
+        swap.buy(sol_wal_balance, SLIPPAGE, keypair)
+    else:
+        swap.buy(float(ask_for_in_amount), SLIPPAGE, keypair)
 
-    if ask_for_action == "s":
-        if ask_for_in_amount == "all":
-            token_wal_balance = sol_wal.get_balance(pool)[0]
-            swap.sell(token_wal_balance, SLIPPAGE, keypair)
-        else:
-            swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
+if ask_for_action == "s":
+    if ask_for_in_amount == "all":
+        token_wal_balance = sol_wal.get_balance(pool)[0]
+        swap.sell(token_wal_balance, SLIPPAGE, keypair)
+    else:
+        swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
 
-    time_end = time.time()
-    time_spent = round(time_end - time_start, 2)
+time_end = time.time()
+time_spent = round(time_end - time_start, 2)
 
-    print(Fore.GREEN + 'Success!' + Fore.RESET + f' ({time_spent}s)')
-
-except Exception as e:
-    print(Fore.RED + 'Transaction failed! Error:')
-    print(e)
+print(Fore.GREEN + 'Success!' + Fore.RESET + f' ({time_spent}s)')
