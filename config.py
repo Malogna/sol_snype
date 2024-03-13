@@ -1,0 +1,2 @@
+SLIPPAGE = 0.1
+PRIVATE_KEY = ""
