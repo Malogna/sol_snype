@@ -1,4 +1,5 @@
 import json
+import sys
 import time
 
 import base58
@@ -66,21 +67,29 @@ else:
 print('Sending transaction...')
 time_start = time.time()
 
-if ask_for_action == "b":
-    if ask_for_in_amount == "all":
-        sol_wal_balance = sol_wal.get_sol_balance()*0.95
-        swap.buy(sol_wal_balance, SLIPPAGE, keypair)
+try:
+    if ask_for_action == "b":
+        if ask_for_in_amount == "all":
+            sol_wal_balance = sol_wal.get_sol_balance()*0.95
+            swap.buy(sol_wal_balance, SLIPPAGE, keypair)
+        else:
+            swap.buy(float(ask_for_in_amount), SLIPPAGE, keypair)
+
+    if ask_for_action == "s":
+        if ask_for_in_amount == "all":
+            token_wal_balance = sol_wal.get_balance(pool)[0]
+            swap.sell(token_wal_balance, SLIPPAGE, keypair)
+        else:
+            swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
+
+    time_end = time.time()
+    time_spent = round(time_end - time_start, 2)
+
+    print(Fore.GREEN + 'Success!' + Fore.RESET + f' ({time_spent}s)')
+except Exception:
+    type, value, traceback = sys.exc_info()
+    if 'insufficient' in str(value):
+        print(Fore.RED + 'Transaction failed! Wallet has insufficient funds.')
     else:
-        swap.buy(float(ask_for_in_amount), SLIPPAGE, keypair)
-
-if ask_for_action == "s":
-    if ask_for_in_amount == "all":
-        token_wal_balance = sol_wal.get_balance(pool)[0]
-        swap.sell(token_wal_balance, SLIPPAGE, keypair)
-    else:
-        swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
-
-time_end = time.time()
-time_spent = round(time_end - time_start, 2)
-
-print(Fore.GREEN + 'Success!' + Fore.RESET + f' ({time_spent}s)')
+        print(Fore.RED + 'Transaction failed! Unknown error. Traceback:')
+        print(value)
