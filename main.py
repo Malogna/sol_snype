@@ -8,7 +8,7 @@ from colorama import Fore
 from solana.rpc.api import Client
 from solders.keypair import Keypair
 
-from config import PRIVATE_KEY, SLIPPAGE
+from config import PRIVATE_KEY, SLIPPAGE, QUICK_BUY, QUICK_BUY_AMOUNT
 from soldexpy.raydium_pool import RaydiumPool
 from soldexpy.swap import Swap
 from soldexpy.wallet import Wallet
@@ -55,8 +55,13 @@ pool = RaydiumPool(client, pool_address)
 swap = Swap(client, pool)
 print('Connected to Raydium!           ')
 
-ask_for_action = str(input("Action (b or s): "))
-ask_for_in_amount = str(input("Amount ($SOL) (number or all): "))
+if QUICK_BUY is False:
+    ask_for_action = str(input("Action (b or s): "))
+    ask_for_in_amount = str(input("Amount ($SOL) (number or all): "))
+else:
+    print('Quickbuying!')
+    ask_for_action = 'b'
+    ask_for_in_amount = QUICK_BUY_AMOUNT
 
 print('Sending transaction...')
 time_start = time.time()
