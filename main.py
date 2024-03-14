@@ -27,7 +27,11 @@ sol_wal = Wallet(client, keypair.pubkey())
 # get pool
 while True:
     try:
-        ask_for_pool = str(input("CA/Pool Address: "))
+        ask_for_pool = str(input("CA/Pool/DX: "))
+
+        if "dexscreener.com/solana/" in ask_for_pool:
+            ask_for_pool = ask_for_pool.split("solana/", 1)[1]
+
         dex_req = json.loads(requests.get(f'https://api.dexscreener.com/latest/dex/tokens/{ask_for_pool}').text)['pairs'][0]
         break
     except KeyboardInterrupt:
@@ -37,7 +41,7 @@ while True:
             dex_req = json.loads(requests.get(f'https://api.dexscreener.com/latest/dex/pairs/solana/{ask_for_pool}').text)['pairs'][0]
             break
         except Exception as e:
-            print(Fore.RED + 'Invalid CA/Pool! (double check address)')
+            print(Fore.RED + 'Invalid CA/Pool/DX! (double check address)')
 
 pool_address = dex_req['pairAddress']
 coin_name = dex_req['baseToken']['name']
