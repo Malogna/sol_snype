@@ -60,6 +60,9 @@ pool = RaydiumPool(client, pool_address)
 swap = Swap(client, pool)
 print('Connected to Raydium!           ')
 
+print('SOL balance:', sol_wal.get_sol_balance(), 'SOL')
+print(f'${coin_symbol} balance: {sol_wal.get_balance(pool)[0]}')
+
 if QUICK_BUY is False:
     ask_for_action = str(input("Action (b or s): "))
     ask_for_in_amount = str(input("Amount ($SOL) (number or all): "))
