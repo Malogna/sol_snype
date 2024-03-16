@@ -148,7 +148,6 @@ else:
         file.write(filedata)
 
 print('Sending transaction...')
-time_start = time.time()
 
 
 @timeout(TIMEOUT)
@@ -181,9 +180,11 @@ def swap_transaction(ask_for_in_amount):
 
 while True:
     try:
+        time_start = time.time()
         swap_transaction(ask_for_in_amount)
-        break
+        quit()
     except KeyboardInterrupt:
         print('Transaction cancelled, exiting...')
+        quit()
     except Exception:
         print(f'{TIMEOUT}s passed, no transaction, trying again...')
