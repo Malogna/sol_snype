@@ -147,11 +147,11 @@ else:
     with open('config.py', 'w') as file:
         file.write(filedata)
 
-print('Sending transaction...')
-
+time_total_start = time.time()
 
 @timeout(TIMEOUT)
 def swap_transaction(ask_for_in_amount):
+    print('Sending transaction...')
     if ask_for_action == "b":
         if ask_for_in_amount == "all":
             sol_wal_balance = sol_wal.get_sol_balance() * 0.95
@@ -173,9 +173,14 @@ def swap_transaction(ask_for_in_amount):
 
     time_end = time.time()
     time_spent = round(time_end - time_start, 2)
+    time_spent_total = round(time_end - time_total_start, 2)
 
     if 'status: Ok(())' in str(swap_txn):
-        print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}s)')
+        if time_spent == time_spent_total:
+            print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}s)')
+        else:
+            print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}/{time_spent_total}s)')
+        quit()
 
 
 while True:
