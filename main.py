@@ -1,5 +1,6 @@
 import json
 import time
+from threading import Thread
 
 import base58
 import requests
@@ -8,14 +9,47 @@ from colorama import Fore
 from solana.rpc.api import Client
 from solders.keypair import Keypair
 
-from config import PRIVATE_KEY, SLIPPAGE, QUICK_BUY, QUICK_BUY_AMOUNT
+from config import PRIVATE_KEY, SLIPPAGE, QUICK_BUY, QUICK_BUY_AMOUNT, TIMEOUT
 from soldexpy.raydium_pool import RaydiumPool
 from soldexpy.swap import Swap
 from soldexpy.wallet import Wallet
 
 from colorama import init
 
+import functools
+
 init(autoreset=True)
+
+
+def timeout(timeout):
+    def deco(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            res = [Exception('function [%s] timeout [%s seconds] exceeded!' % (func.__name__, timeout))]
+
+            def newFunc():
+                try:
+                    res[0] = func(*args, **kwargs)
+                except Exception as e:
+                    res[0] = e
+
+            t = Thread(target=newFunc)
+            t.daemon = True
+            try:
+                t.start()
+                t.join(timeout)
+            except Exception as je:
+                print('error starting thread')
+                raise je
+            ret = res[0]
+            if isinstance(ret, BaseException):
+                raise ret
+            return ret
+
+        return wrapper
+
+    return deco
+
 
 # load private key
 keypair = Keypair.from_bytes(base58.b58decode(PRIVATE_KEY))
@@ -68,7 +102,7 @@ print(Fore.GREEN + 'Connected to Raydium!           ')
 
 try:
     coin_bal = float(sol_wal.get_balance(pool)[0])
-    print(f'${coin_symbol} balance: {coin_bal} (${round(coin_bal*coin_price, 2)})')
+    print(f'${coin_symbol} balance: {coin_bal} (${round(coin_bal * coin_price, 2)})')
 except TypeError:
     pass
 
@@ -116,26 +150,40 @@ else:
 print('Sending transaction...')
 time_start = time.time()
 
-if ask_for_action == "b":
-    if ask_for_in_amount == "all":
-        sol_wal_balance = sol_wal.get_sol_balance() * 0.95
-        swap_txn = swap.buy(sol_wal_balance, SLIPPAGE, keypair)
-    else:
-        swap_txn = swap.buy(float(ask_for_in_amount), SLIPPAGE, keypair)
 
-if ask_for_action == "s":
-    if ask_for_in_amount == "all":
-        token_wal_balance = sol_wal.get_balance(pool)[0]
-        swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
-    else:
-        dex_req = \
-            json.loads(requests.get(f'https://api.dexscreener.com/latest/dex/pairs/solana/{pool_address}').text)[
-                'pairs'][0]
-        ask_for_in_amount = float(ask_for_in_amount)/float(dex_req['priceNative'])
-        swap_txn = swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
+@timeout(TIMEOUT)
+def swap_transaction(ask_for_in_amount):
+    if ask_for_action == "b":
+        if ask_for_in_amount == "all":
+            sol_wal_balance = sol_wal.get_sol_balance() * 0.95
+            swap_txn = swap.buy(sol_wal_balance, SLIPPAGE, keypair)
+        else:
+            swap_txn = swap.buy(float(ask_for_in_amount), SLIPPAGE, keypair)
 
-time_end = time.time()
-time_spent = round(time_end - time_start, 2)
+    if ask_for_action == "s":
+        if ask_for_in_amount == "all":
+            token_wal_balance = sol_wal.get_balance(pool)[0]
+            swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
+        else:
+            dex_req = \
+                json.loads(
+                    requests.get(f'https://api.dexscreener.com/latest/dex/pairs/solana/{pool_address}').text)[
+                    'pairs'][0]
+            ask_for_in_amount = float(ask_for_in_amount) / float(dex_req['priceNative'])
+            swap_txn = swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
 
-if 'status: Ok(())' in str(swap_txn):
-    print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}s)')
+    time_end = time.time()
+    time_spent = round(time_end - time_start, 2)
+
+    if 'status: Ok(())' in str(swap_txn):
+        print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}s)')
+
+
+while True:
+    try:
+        swap_transaction(ask_for_in_amount)
+        break
+    except KeyboardInterrupt:
+        print('Transaction cancelled, exiting...')
+    except Exception:
+        print(f'{TIMEOUT}s passed, no transaction, trying again...')
