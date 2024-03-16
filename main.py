@@ -21,11 +21,11 @@ import functools
 init(autoreset=True)
 
 
-def timeout(timeout):
+def timeout(seconds_before_timeout):
     def deco(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            res = [Exception('function [%s] timeout [%s seconds] exceeded!' % (func.__name__, timeout))]
+            res = [TimeoutError('function [%s] timeout [%s seconds] exceeded!' % (func.__name__, seconds_before_timeout))]
 
             def newFunc():
                 try:
@@ -37,10 +37,10 @@ def timeout(timeout):
             t.daemon = True
             try:
                 t.start()
-                t.join(timeout)
-            except Exception as je:
+                t.join(seconds_before_timeout)
+            except Exception as e:
                 print('error starting thread')
-                raise je
+                raise e
             ret = res[0]
             if isinstance(ret, BaseException):
                 raise ret
@@ -149,6 +149,7 @@ else:
 
 time_total_start = time.time()
 
+
 @timeout(TIMEOUT)
 def swap_transaction(ask_for_in_amount):
     print('Sending transaction...')
@@ -180,7 +181,6 @@ def swap_transaction(ask_for_in_amount):
             print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}s)')
         else:
             print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}/{time_spent_total}s)')
-        quit()
 
 
 while True:
@@ -191,5 +191,5 @@ while True:
     except KeyboardInterrupt:
         print('Transaction cancelled, exiting...')
         quit()
-    except Exception:
+    except TimeoutError:
         print(f'{TIMEOUT}s passed, no transaction, trying again...')
