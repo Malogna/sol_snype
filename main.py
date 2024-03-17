@@ -8,6 +8,7 @@ from art import text2art
 from colorama import Fore
 from solana.rpc.api import Client
 from solders.keypair import Keypair
+from solders.pubkey import Pubkey
 
 from config import PRIVATE_KEY, SLIPPAGE, QUICK_BUY, QUICK_BUY_AMOUNT, TIMEOUT
 from soldexpy.raydium_pool import RaydiumPool
@@ -25,7 +26,8 @@ def timeout(seconds_before_timeout):
     def deco(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            res = [TimeoutError('function [%s] timeout [%s seconds] exceeded!' % (func.__name__, seconds_before_timeout))]
+            res = [
+                TimeoutError('function [%s] timeout [%s seconds] exceeded!' % (func.__name__, seconds_before_timeout))]
 
             def newFunc():
                 try:
@@ -51,6 +53,61 @@ def timeout(seconds_before_timeout):
     return deco
 
 
+def extract_pool_info(pools_list: list, mint: str) -> dict:
+    for pool in pools_list:
+
+        if pool['baseMint'] == mint and pool['quoteMint'] == 'So11111111111111111111111111111111111111112':
+            return pool
+        elif pool['quoteMint'] == mint and pool['baseMint'] == 'So11111111111111111111111111111111111111112':
+            return pool
+    raise Exception(f'{mint} pool not found!')
+
+
+def fetch_pool_keys(mint: str):
+    amm_info = {}
+    all_pools = {}
+    try:
+        # Using this, so it will be faster else no option, we go the slower way.
+        with open('all_pools.json', 'r') as file:
+            all_pools = json.load(file)
+        amm_info = extract_pool_info(all_pools, mint)
+    except:
+        resp = requests.get('https://api.raydium.io/v2/sdk/liquidity/mainnet.json', stream=True)
+        pools = resp.json()
+        official = pools['official']
+        unofficial = pools['unOfficial']
+        all_pools = official + unofficial
+
+        # Store all_pools in a JSON file
+        with open('all_pools.json', 'w') as file:
+            json.dump(all_pools, file)
+        try:
+            amm_info = extract_pool_info(all_pools, mint)
+        except:
+            return "failed"
+
+    return {
+        'amm_id': Pubkey.from_string(amm_info['id']),
+        'authority': Pubkey.from_string(amm_info['authority']),
+        'base_mint': Pubkey.from_string(amm_info['baseMint']),
+        'base_decimals': amm_info['baseDecimals'],
+        'quote_mint': Pubkey.from_string(amm_info['quoteMint']),
+        'quote_decimals': amm_info['quoteDecimals'],
+        'lp_mint': Pubkey.from_string(amm_info['lpMint']),
+        'open_orders': Pubkey.from_string(amm_info['openOrders']),
+        'target_orders': Pubkey.from_string(amm_info['targetOrders']),
+        'base_vault': Pubkey.from_string(amm_info['baseVault']),
+        'quote_vault': Pubkey.from_string(amm_info['quoteVault']),
+        'market_id': Pubkey.from_string(amm_info['marketId']),
+        'market_base_vault': Pubkey.from_string(amm_info['marketBaseVault']),
+        'market_quote_vault': Pubkey.from_string(amm_info['marketQuoteVault']),
+        'market_authority': Pubkey.from_string(amm_info['marketAuthority']),
+        'bids': Pubkey.from_string(amm_info['marketBids']),
+        'asks': Pubkey.from_string(amm_info['marketAsks']),
+        'event_queue': Pubkey.from_string(amm_info['marketEventQueue'])
+    }
+
+
 # load private key
 keypair = Keypair.from_bytes(base58.b58decode(PRIVATE_KEY))
 # configure rpc client
@@ -61,6 +118,7 @@ print(text2art("yosharu-sol-snype"))
 print('SOL balance:', sol_wal.get_sol_balance(), 'SOL')
 
 # get pool
+dex_req_success = False
 while True:
     try:
         ask_for_pool = str(input("CA/Pool/DX: "))
@@ -73,36 +131,50 @@ while True:
             ask_for_pool = ask_for_pool.split("?t", 1)[0]
 
         dex_req = \
-            json.loads(requests.get(f'https://api.dexscreener.com/latest/dex/tokens/{ask_for_pool}').text)['pairs'][0]
+            json.loads(requests.get(f'https://api.dexscreener.com/latest/dex/pairs/solana/{ask_for_pool}').text)[
+                'pairs'][0]
+        dex_req_success = True
+        ask_for_pool = dex_req['pairAddress']
         break
     except KeyboardInterrupt:
         quit()
     except Exception as e:
         try:
             dex_req = \
-                json.loads(requests.get(f'https://api.dexscreener.com/latest/dex/pairs/solana/{ask_for_pool}').text)[
-                    'pairs'][0]
+                json.loads(requests.get(f'https://api.dexscreener.com/latest/dex/tokens/{ask_for_pool}').text)['pairs'][
+                    0]
+            dex_req_success = True
+            ask_for_pool = dex_req['pairAddress']
             break
         except Exception as e:
-            print(Fore.RED + 'Invalid CA/Pool/DX! (double check address)')
+            try:
+                print('New token, talking to Raydium, give it time...')
+                ask_for_pool = str(fetch_pool_keys(ask_for_pool)['amm_id'])
+            except Exception as e:
+                print(Fore.RED + 'Invalid CA/Pool/DX! (double check address)')
 
-pool_address = dex_req['pairAddress']
-coin_name = dex_req['baseToken']['name']
-coin_symbol = dex_req['baseToken']['symbol']
-coin_price = float(dex_req['priceUsd'])
-coin_liq = float(dex_req['liquidity']['usd'])
 
-print(f'Token name: {coin_name} (${coin_symbol}) | Price: ${coin_price} | Liquidity: ${coin_liq}')
+if dex_req_success is True:
+    pool_address = dex_req['pairAddress']
+    coin_name = dex_req['baseToken']['name']
+    coin_symbol = dex_req['baseToken']['symbol']
+    coin_price = float(dex_req['priceUsd'])
+    coin_liq = float(dex_req['liquidity']['usd'])
+
+    print(f'Token name: {coin_name} (${coin_symbol}) | Price: ${coin_price} | Liquidity: ${coin_liq}')
 
 print('Connecting to Raydium via RPC...', end='\r')
-pool = RaydiumPool(client, pool_address)
+pool = RaydiumPool(client, ask_for_pool)
 # initialize Swap
 swap = Swap(client, pool)
 print(Fore.GREEN + 'Connected to Raydium!           ')
 
 try:
     coin_bal = float(sol_wal.get_balance(pool)[0])
-    print(f'${coin_symbol} balance: {coin_bal} (${round(coin_bal * coin_price, 2)})')
+    if dex_req_success is True:
+        print(f'${coin_symbol} balance: {coin_bal} (${round(coin_bal * coin_price, 2)})')
+    else:
+        print(f'Token balance: {coin_bal}')
 except TypeError:
     pass
 
@@ -180,7 +252,7 @@ def swap_transaction(ask_for_in_amount):
         if time_spent == time_spent_total:
             print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}s)')
         else:
-            print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}/{time_spent_total}s)')
+            print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET + f' ({time_spent}s/{time_spent_total}s)')
 
 
 while True:
