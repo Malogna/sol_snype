@@ -170,7 +170,7 @@ while True:
                     ask_for_pool = fetch_pool_keys(ask_for_pool)['amm_id']
                     dex_req_success = False
                     break
-                except:
+                except Exception:
                     print(Fore.RED + 'Invalid CA/Pool/DX! (double check address)')
 
 if dex_req_success is True:
