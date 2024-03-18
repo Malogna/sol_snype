@@ -11,6 +11,8 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
 from config import PRIVATE_KEY, SLIPPAGE, QUICK_BUY, QUICK_BUY_AMOUNT, TIMEOUT
+from soldexpy.common.direction import Direction
+from soldexpy.common.unit import Unit
 from soldexpy.raydium_pool import RaydiumPool
 from soldexpy.swap import Swap
 from soldexpy.wallet import Wallet
@@ -56,9 +58,11 @@ def timeout(seconds_before_timeout):
 def extract_pool_info(pools_list: list, mint: str) -> dict:
     for pool in pools_list:
 
-        if pool['baseMint'].lower() == mint.lower() and pool['quoteMint'] == 'So11111111111111111111111111111111111111112':
+        if pool['baseMint'].lower() == mint.lower() and pool[
+            'quoteMint'] == 'So11111111111111111111111111111111111111112':
             return pool
-        elif pool['quoteMint'].lower() == mint.lower() and pool['baseMint'] == 'So11111111111111111111111111111111111111112':
+        elif pool['quoteMint'].lower() == mint.lower() and pool[
+            'baseMint'] == 'So11111111111111111111111111111111111111112':
             return pool
     raise Exception(f'{mint} pool not found!')
 
@@ -108,6 +112,10 @@ def fetch_pool_keys(mint: str):
     }
 
     return info
+
+
+def get_token_price_native(pool):
+    return pool.get_price(1, Direction.SPEND_BASE_TOKEN, Unit.QUOTE_TOKEN)[0]
 
 
 # load private key
@@ -165,7 +173,6 @@ while True:
                 except:
                     print(Fore.RED + 'Invalid CA/Pool/DX! (double check address)')
 
-
 if dex_req_success is True:
     pool_address = dex_req['pairAddress']
     coin_name = dex_req['baseToken']['name']
@@ -191,6 +198,7 @@ try:
 except TypeError:
     pass
 
+in_percent = False
 if QUICK_BUY is False:
 
     while True:
@@ -205,16 +213,24 @@ if QUICK_BUY is False:
 
     while True:
         try:
-            ask_for_in_amount = str(input("Amount ($SOL) (number or all): "))
-            if (float(ask_for_in_amount) > 0):
+            ask_for_in_amount = str(input("Amount ($SOL) (number, percent or all): "))
+
+            if float(ask_for_in_amount) > 0:
                 break
             else:
                 raise Exception()
         except Exception:
-            if ask_for_in_amount == 'all':
+            try:
+                if '%' in ask_for_in_amount:
+                    in_percent = True
+                else:
+                    in_percent = False
                 break
-            else:
-                print(ask_for_in_amount, 'isnt a number or all')
+            except Exception:
+                if ask_for_in_amount == 'all':
+                    break
+                else:
+                    print(ask_for_in_amount, 'isnt a number, percent or all')
 
 else:
     print('Quickbuying!')
@@ -241,7 +257,10 @@ def swap_transaction(ask_for_in_amount):
     if ask_for_action == "b":
         if ask_for_in_amount == "all":
             sol_wal_balance = sol_wal.get_sol_balance() * 0.95
-            swap_txn = swap.buy(sol_wal_balance, SLIPPAGE, keypair)
+            swap_txn = swap.buy(float(sol_wal_balance), SLIPPAGE, keypair)
+        elif in_percent is True:
+            ask_for_in_amount = sol_wal.get_sol_balance() * (float(ask_for_in_amount.replace('%', '')) / 100)
+            swap_txn = swap.buy(float(ask_for_in_amount), SLIPPAGE, keypair)
         else:
             swap_txn = swap.buy(float(ask_for_in_amount), SLIPPAGE, keypair)
 
@@ -249,12 +268,12 @@ def swap_transaction(ask_for_in_amount):
         if ask_for_in_amount == "all":
             token_wal_balance = sol_wal.get_balance(pool)[0]
             swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
+        elif in_percent is True:
+            token_wal_balance = sol_wal.get_balance(pool)[0] * (float(ask_for_in_amount.replace('%', '')) / 100)
+            swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
         else:
-            dex_req = \
-                json.loads(
-                    requests.get(f'https://api.dexscreener.com/latest/dex/pairs/solana/{pool_address}').text)[
-                    'pairs'][0]
-            ask_for_in_amount = float(ask_for_in_amount) / float(dex_req['priceNative'])
+            price = get_token_price_native(pool)
+            ask_for_in_amount = float(ask_for_in_amount) / float(price)
             swap_txn = swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
 
     time_end = time.time()
