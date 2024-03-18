@@ -56,9 +56,9 @@ def timeout(seconds_before_timeout):
 def extract_pool_info(pools_list: list, mint: str) -> dict:
     for pool in pools_list:
 
-        if pool['baseMint'] == mint and pool['quoteMint'] == 'So11111111111111111111111111111111111111112':
+        if pool['baseMint'].lower() == mint.lower() and pool['quoteMint'] == 'So11111111111111111111111111111111111111112':
             return pool
-        elif pool['quoteMint'] == mint and pool['baseMint'] == 'So11111111111111111111111111111111111111112':
+        elif pool['quoteMint'].lower() == mint.lower() and pool['baseMint'] == 'So11111111111111111111111111111111111111112':
             return pool
     raise Exception(f'{mint} pool not found!')
 
@@ -86,7 +86,7 @@ def fetch_pool_keys(mint: str):
         except:
             return "failed"
 
-    return {
+    info = {
         'amm_id': Pubkey.from_string(amm_info['id']),
         'authority': Pubkey.from_string(amm_info['authority']),
         'base_mint': Pubkey.from_string(amm_info['baseMint']),
@@ -107,6 +107,8 @@ def fetch_pool_keys(mint: str):
         'event_queue': Pubkey.from_string(amm_info['marketEventQueue'])
     }
 
+    return info
+
 
 # load private key
 keypair = Keypair.from_bytes(base58.b58decode(PRIVATE_KEY))
@@ -115,10 +117,12 @@ client = Client("https://api.mainnet-beta.solana.com")
 sol_wal = Wallet(client, keypair.pubkey())
 
 print(text2art("yosharu-sol-snype"))
-print('SOL balance:', sol_wal.get_sol_balance(), 'SOL')
+
+print(f'Address: {keypair.pubkey()} ({sol_wal.get_sol_balance()} SOL)')
 
 # get pool
 dex_req_success = False
+pool_init = False
 while True:
     try:
         ask_for_pool = str(input("CA/Pool/DX: "))
@@ -148,10 +152,18 @@ while True:
             break
         except Exception as e:
             try:
-                print('New token, talking to Raydium, give it time...')
-                ask_for_pool = str(fetch_pool_keys(ask_for_pool)['amm_id'])
-            except Exception as e:
-                print(Fore.RED + 'Invalid CA/Pool/DX! (double check address)')
+                pool = RaydiumPool(client, ask_for_pool)
+                dex_req_success = False
+                pool_init = True
+                break
+            except Exception:
+                try:
+                    print('New token, getting liquidity pools from Raydium...')
+                    ask_for_pool = fetch_pool_keys(ask_for_pool)['amm_id']
+                    dex_req_success = False
+                    break
+                except:
+                    print(Fore.RED + 'Invalid CA/Pool/DX! (double check address)')
 
 
 if dex_req_success is True:
@@ -164,7 +176,8 @@ if dex_req_success is True:
     print(f'Token name: {coin_name} (${coin_symbol}) | Price: ${coin_price} | Liquidity: ${coin_liq}')
 
 print('Connecting to Raydium via RPC...', end='\r')
-pool = RaydiumPool(client, ask_for_pool)
+if pool_init is False:
+    pool = RaydiumPool(client, ask_for_pool)
 # initialize Swap
 swap = Swap(client, pool)
 print(Fore.GREEN + 'Connected to Raydium!           ')
