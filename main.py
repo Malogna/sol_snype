@@ -262,7 +262,7 @@ def swap_transaction(ask_for_in_amount):
     print('Sending transaction...')
     if ask_for_action == "b":
         if ask_for_in_amount == "all":
-            sol_wal_balance = sol_wal.get_sol_balance() * 0.97
+            sol_wal_balance = sol_wal.get_sol_balance() * 0.99
             swap_txn = swap.buy(float(sol_wal_balance), SLIPPAGE, keypair)
         elif in_percent is True:
             ask_for_in_amount = sol_wal.get_sol_balance() * (float(ask_for_in_amount.replace('%', '')) / 100)
