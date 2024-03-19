@@ -262,7 +262,7 @@ def swap_transaction(ask_for_in_amount):
     print('Sending transaction...')
     if ask_for_action == "b":
         if ask_for_in_amount == "all":
-            sol_wal_balance = sol_wal.get_sol_balance() * 0.95
+            sol_wal_balance = sol_wal.get_sol_balance() * 0.97
             swap_txn = swap.buy(float(sol_wal_balance), SLIPPAGE, keypair)
         elif in_percent is True:
             ask_for_in_amount = sol_wal.get_sol_balance() * (float(ask_for_in_amount.replace('%', '')) / 100)
@@ -297,14 +297,11 @@ while True:
     try:
         time_start = time.time()
         swap_transaction(ask_for_in_amount)
-        quit()
+        break
     except KeyboardInterrupt:
         print('Transaction cancelled, exiting... (transaction may still have gone through)')
         quit()
     except TimeoutError:
         print(f'{TIMEOUT}s passed, no transaction, trying again...')
     except RPCException as e:
-        print(Fore.RED + 'RPC error!')
-        print(e)
-        break
-
+        print(Fore.RED + 'RPC error, trying again...')
