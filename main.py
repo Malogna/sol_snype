@@ -10,7 +10,7 @@ from solana.rpc.api import Client
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
-from config import PRIVATE_KEY, SLIPPAGE, QUICK_BUY, QUICK_BUY_AMOUNT, TIMEOUT
+from config import PRIVATE_KEY, SLIPPAGE, QUICK_BUY, QUICK_BUY_AMOUNT, TIMEOUT, RPC
 from soldexpy.common.direction import Direction
 from soldexpy.common.unit import Unit
 from soldexpy.raydium_pool import RaydiumPool
@@ -20,6 +20,8 @@ from soldexpy.wallet import Wallet
 from colorama import init
 
 import functools
+
+from solana.rpc.core import RPCException
 
 init(autoreset=True)
 
@@ -121,12 +123,16 @@ def get_token_price_native(pool):
 # load private key
 keypair = Keypair.from_bytes(base58.b58decode(PRIVATE_KEY))
 # configure rpc client
-client = Client("https://api.mainnet-beta.solana.com")
+client = Client(RPC)
 sol_wal = Wallet(client, keypair.pubkey())
 
 print(text2art("yosharu-sol-snype"))
 
+# wal_start = time.time()
 print(f'Address: {keypair.pubkey()} ({sol_wal.get_sol_balance()} SOL)')
+# wal_end = time.time()
+# wal_time = wal_end - wal_start
+# print(wal_time, 's')
 
 # get pool
 dex_req_success = False
@@ -166,7 +172,7 @@ while True:
                 break
             except Exception:
                 try:
-                    print('New token, getting liquidity pools from Raydium...')
+                    print('Token not found on Dexscreener, getting liquidity pools from Raydium...')
                     ask_for_pool = fetch_pool_keys(ask_for_pool)['amm_id']
                     dex_req_success = False
                     break
@@ -264,7 +270,7 @@ def swap_transaction(ask_for_in_amount):
         else:
             swap_txn = swap.buy(float(ask_for_in_amount), SLIPPAGE, keypair)
 
-    if ask_for_action == "s":
+    elif ask_for_action == "s":
         if ask_for_in_amount == "all":
             token_wal_balance = sol_wal.get_balance(pool)[0]
             swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
@@ -293,7 +299,12 @@ while True:
         swap_transaction(ask_for_in_amount)
         quit()
     except KeyboardInterrupt:
-        print('Transaction cancelled, exiting...')
+        print('Transaction cancelled, exiting... (transaction may still have gone through)')
         quit()
     except TimeoutError:
         print(f'{TIMEOUT}s passed, no transaction, trying again...')
+    except RPCException as e:
+        print(Fore.RED + 'RPC error!')
+        print(e)
+        break
+
