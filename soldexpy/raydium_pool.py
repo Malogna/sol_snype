@@ -130,7 +130,7 @@ class RaydiumPool:
         quote_vault_balance = self.quote_vault_balance
 
         # Swap fee: 0.25%
-        swap_fee = 0.25
+        swap_fee = 0.00
         # Network fee: don't consider network fee for now since it's pratically small (@TODO: fix me)
         network_fee = 0.00
 
