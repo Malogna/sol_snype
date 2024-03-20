@@ -22,7 +22,7 @@ from solana.rpc.core import RPCException
 
 init(autoreset=True)
 
-debug = False
+debug = True
 
 
 def timeout(seconds_before_timeout):
@@ -340,74 +340,78 @@ while True:
 
 if bought_price != 0 and ask_for_action != 's':
     ask_for_autosell = str(input('Autosell? (y/n): '))
-    if ask_for_autosell == 'y':
-        # print('Sleeping for 10 seconds until token is in wallet..')
-        # time.sleep(10)
+    try:
+        if ask_for_autosell == 'y':
+            # print('Sleeping for 10 seconds until token is in wallet..')
+            # time.sleep(10)
 
-        while True:
-            try:
-                ask_for_in_amount = str(input("Autosell amount ($SOL) (number, percent or all): "))
-
-                if float(ask_for_in_amount) > 0:
-                    break
-                else:
-                    raise Exception()
-            except Exception:
+            while True:
                 try:
-                    if '%' in ask_for_in_amount:
-                        in_percent = True
-                    else:
-                        in_percent = False
-                    break
-                except Exception:
-                    if ask_for_in_amount == 'all':
+                    ask_for_in_amount = str(input("Autosell amount ($SOL) (number, percent or all): "))
+
+                    if float(ask_for_in_amount) > 0:
                         break
                     else:
-                        print(ask_for_in_amount, 'isnt a number, percent or all')
+                        raise Exception()
+                except Exception:
+                    try:
+                        if '%' in ask_for_in_amount:
+                            in_percent = True
+                        else:
+                            in_percent = False
+                        break
+                    except Exception:
+                        if ask_for_in_amount == 'all':
+                            break
+                        else:
+                            print(ask_for_in_amount, 'isnt a number, percent or all')
 
-        ask_for_autosell_method = str(input('x or mcap: '))
+            ask_for_autosell_method = str(input('x or mcap: '))
 
-        if ask_for_autosell_method == 'x':
-            auto_sell_x = float(input('How many X?: '))
-            print('Watching price...')
-            while True:
-                price = get_token_price_native(pool)
-                current_x = price / bought_price
-                print(
-                    f'Current Xs: {round(current_x, 2)}x/{round(auto_sell_x, 2)}x (current native price: {round(price, 6)} SOL)',
-                    end='\r')
-                if current_x >= auto_sell_x:
-                    print('Xs reached! Sending sell transaction...')
-                    if ask_for_in_amount == "all":
-                        token_wal_balance = sol_wal.get_balance(pool)[0]
-                        swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
-                    elif in_percent is True:
-                        token_wal_balance = sol_wal.get_balance(pool)[0] * (
-                                float(ask_for_in_amount.replace('%', '')) / 100)
-                        swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
-                    else:
-                        ask_for_in_amount = float(ask_for_in_amount) / float(price)
-                        swap_txn = swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
+            if ask_for_autosell_method == 'x':
+                auto_sell_x = float(input('How many X?: '))
+                print('Watching price...')
+                while True:
+                    price = get_token_price_native(pool)
+                    current_x = price / bought_price
+                    print(
+                        f'Current Xs: {round(current_x, 2)}x/{round(auto_sell_x, 2)}x (current native price: {round(price, 6)} SOL)',
+                        end='\r')
+                    if current_x >= auto_sell_x:
+                        print('Xs reached! Sending sell transaction...')
+                        if ask_for_in_amount == "all":
+                            token_wal_balance = sol_wal.get_balance(pool)[0]
+                            swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
+                        elif in_percent is True:
+                            token_wal_balance = sol_wal.get_balance(pool)[0] * (
+                                    float(ask_for_in_amount.replace('%', '')) / 100)
+                            swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
+                        else:
+                            ask_for_in_amount = float(ask_for_in_amount) / float(price)
+                            swap_txn = swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
 
-        elif ask_for_autosell_method == 'mcap':
-            auto_sell_mcap = float(input('What mcap to sell at?: '))
-            print('Watching mcap...')
-            while True:
-                start_iter_time = time.time()
-                current_mcap = get_market_cap(pool, ask_for_pool)
-                print(f'Current mcap: ${current_mcap}')
-                if current_mcap >= auto_sell_mcap:
-                    print('Mcap reached! Sending sell transaction...')
-                    if ask_for_in_amount == "all":
-                        token_wal_balance = sol_wal.get_balance(pool)[0]
-                        swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
-                    elif in_percent is True:
-                        token_wal_balance = sol_wal.get_balance(pool)[0] * (
-                                float(ask_for_in_amount.replace('%', '')) / 100)
-                        swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
-                    else:
-                        price = get_token_price_native(pool)
-                        ask_for_in_amount = float(ask_for_in_amount) / float(price)
-                        swap_txn = swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
-                end_iter_time = time.time()
-                time.sleep(1 - (end_iter_time - start_iter_time))
+            elif ask_for_autosell_method == 'mcap':
+                auto_sell_mcap = float(input('What mcap to sell at?: '))
+                print('Watching mcap...')
+                while True:
+                    start_iter_time = time.time()
+                    current_mcap = get_market_cap(pool, ask_for_pool)
+                    print(f'Current mcap: ${current_mcap}')
+                    if current_mcap >= auto_sell_mcap:
+                        print('Mcap reached! Sending sell transaction...')
+                        if ask_for_in_amount == "all":
+                            token_wal_balance = sol_wal.get_balance(pool)[0]
+                            swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
+                        elif in_percent is True:
+                            token_wal_balance = sol_wal.get_balance(pool)[0] * (
+                                    float(ask_for_in_amount.replace('%', '')) / 100)
+                            swap_txn = swap.sell(token_wal_balance, SLIPPAGE, keypair)
+                        else:
+                            price = get_token_price_native(pool)
+                            ask_for_in_amount = float(ask_for_in_amount) / float(price)
+                            swap_txn = swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
+                    end_iter_time = time.time()
+                    time.sleep(1 - (end_iter_time - start_iter_time))
+    except KeyboardInterrupt:
+        print('Autosell cancelled.')
+        pass
