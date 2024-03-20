@@ -22,7 +22,7 @@ from solana.rpc.core import RPCException
 
 init(autoreset=True)
 
-debug = True
+debug = False
 
 
 def timeout(seconds_before_timeout):
