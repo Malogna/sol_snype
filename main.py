@@ -25,6 +25,8 @@ from solana.rpc.core import RPCException
 
 init(autoreset=True)
 
+debug = False
+
 
 def timeout(seconds_before_timeout):
     def deco(func):
@@ -117,7 +119,7 @@ def fetch_pool_keys(mint: str):
 
 
 def get_token_price_native(pool):
-    return float(pool.get_price(1, Direction.SPEND_BASE_TOKEN, Unit.QUOTE_TOKEN)[0])
+    return float(pool.get_price(1, Direction.SPEND_BASE_TOKEN, Unit.QUOTE_TOKEN, update_vault_balance=True)[0])
 
 
 def get_token_price_usd(pool):
@@ -128,7 +130,8 @@ def get_token_price_usd(pool):
 
 
 def get_token_address(pool_address):
-    dex_req = json.loads(requests.get(f'https://api.dexscreener.com/latest/dex/pairs/solana/{pool_address}').text)['pairs'][0]
+    dex_req = \
+    json.loads(requests.get(f'https://api.dexscreener.com/latest/dex/pairs/solana/{pool_address}').text)['pairs'][0]
     return dex_req['baseToken']['address']
 
 
@@ -325,8 +328,10 @@ def swap_transaction(ask_for_in_amount):
 while True:
     try:
         time_start = time.time()
-        swap_transaction(ask_for_in_amount)
+        if debug is False:
+            swap_transaction(ask_for_in_amount)
         bought_price = get_token_price_native(pool)
+        print(f'Bought at price: {bought_price}')
         break
     except KeyboardInterrupt:
         print('Transaction cancelled, exiting... (transaction may still have gone through)')
@@ -339,8 +344,8 @@ while True:
 if bought_price != 0 and ask_for_action != 's':
     ask_for_autosell = str(input('Autosell? (y/n): '))
     if ask_for_autosell == 'y':
-        print('Sleeping for 10 seconds until token is in wallet..')
-        time.sleep(10)
+        # print('Sleeping for 10 seconds until token is in wallet..')
+        # time.sleep(10)
 
         while True:
             try:
@@ -369,10 +374,11 @@ if bought_price != 0 and ask_for_action != 's':
             auto_sell_x = float(input('How many X?: '))
             print('Watching price...')
             while True:
-                start_iter_time = time.time()
                 price = get_token_price_native(pool)
                 current_x = price / bought_price
-                print(f'Current Xs: {round(current_x, 2)}x', end='\r')
+                print(
+                    f'Current Xs: {round(current_x, 2)}x/{round(auto_sell_x, 2)}x (current native price: {round(price, 6)} SOL)',
+                    end='\r')
                 if current_x >= auto_sell_x:
                     print('Xs reached! Sending sell transaction...')
                     if ask_for_in_amount == "all":
@@ -385,8 +391,6 @@ if bought_price != 0 and ask_for_action != 's':
                     else:
                         ask_for_in_amount = float(ask_for_in_amount) / float(price)
                         swap_txn = swap.sell(float(ask_for_in_amount), SLIPPAGE, keypair)
-                end_iter_time = time.time()
-                time.sleep(1 - (end_iter_time - start_iter_time))
 
         elif ask_for_autosell_method == 'mcap':
             auto_sell_mcap = float(input('What mcap to sell at?: '))
