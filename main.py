@@ -1,10 +1,11 @@
 import json
 import time
-from threading import Thread
-
 import base58
 import requests
+import functools
+
 from art import text2art
+from threading import Thread
 from colorama import Fore
 from solana.rpc.api import Client
 from solders.keypair import Keypair
@@ -16,16 +17,12 @@ from soldexpy.common.unit import Unit
 from soldexpy.raydium_pool import RaydiumPool
 from soldexpy.swap import Swap
 from soldexpy.wallet import Wallet
-
 from colorama import init
-
-import functools
-
 from solana.rpc.core import RPCException
 
 init(autoreset=True)
 
-debug = False
+debug = True
 
 
 def timeout(seconds_before_timeout):
@@ -290,7 +287,7 @@ bought_price = 0
 
 
 @timeout(TIMEOUT)
-def swap_transaction(ask_for_in_amount):
+async def swap_transaction(ask_for_in_amount):
     print('Sending transaction...')
     if ask_for_action == "b":
         if ask_for_in_amount == "all":
