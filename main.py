@@ -331,7 +331,12 @@ while True:
         if debug is False:
             swap_transaction(ask_for_in_amount)
         bought_price = get_token_price_native(pool)
-        print(f'Bought at price: {bought_price}')
+        bought_price_usd = get_token_price_usd(pool)
+
+        if ask_for_action == 'b':
+            print(f'Bought @ ${bought_price_usd}')
+        elif ask_for_action == 's':
+            print(f'Sold @ ${bought_price_usd}')
         break
     except KeyboardInterrupt:
         print('Transaction cancelled, exiting... (transaction may still have gone through)')
