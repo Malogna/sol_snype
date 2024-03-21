@@ -18,6 +18,7 @@ from spl.token.instructions import (
 )
 
 import soldexpy.solana.client_wrapper as client_wrapper
+from config import TRANSFER_FEE
 from soldexpy.common.reference_address import RAYDIUM_LIQUIDITY_POOL_V4
 from soldexpy.layout.raydium_layout import LIQUIDITY_STATE_LAYOUT_V4
 from soldexpy.raydium_pool import RaydiumPool
@@ -30,8 +31,8 @@ class SwapTransactionBuilder:
         client: Client,
         pool: RaydiumPool,
         payer: Keypair,
-        unit_price: int = 25000,
-        unit_budget: int = 600000,
+        unit_price: int = TRANSFER_FEE,
+        unit_budget: int = TRANSFER_FEE + 350000,
     ):
         self.client = client
         self.pool = pool
