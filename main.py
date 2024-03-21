@@ -119,8 +119,11 @@ def get_token_price_native(pool):
     return float(pool.get_price(1, Direction.SPEND_BASE_TOKEN, Unit.QUOTE_TOKEN, update_vault_balance=True)[0])
 
 
-def get_token_price_usd(pool):
-    native = get_token_price_native(pool)
+def get_token_price_usd(pool, known_price=None):
+    if known_price is not None:
+        native = known_price
+    else:
+        native = get_token_price_native(pool)
     sol_price = float(
         json.loads(requests.get('https://www.binance.com/api/v3/ticker/price?symbol=SOLUSDT').text)['price'])
     return native * sol_price
@@ -331,7 +334,7 @@ while True:
         if debug is False:
             swap_transaction(ask_for_in_amount)
         bought_price = get_token_price_native(pool)
-        bought_price_usd = get_token_price_usd(pool)
+        bought_price_usd = get_token_price_usd(pool, bought_price)
 
         if ask_for_action == 'b':
             print(f'Bought @ ${bought_price_usd}')
