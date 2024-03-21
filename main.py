@@ -160,7 +160,10 @@ sol_wal = Wallet(client, keypair.pubkey())
 
 print(text2art("yosharu-sol-snype"))
 
+time_start = time.time()
 print(f'Address: {keypair.pubkey()} ({sol_wal.get_sol_balance()} SOL)')
+time_end = time.time()
+print(time_end-time_start)
 
 # get pool
 dex_req_success = False
@@ -287,7 +290,7 @@ bought_price = 0
 
 
 @timeout(TIMEOUT)
-async def swap_transaction(ask_for_in_amount):
+def swap_transaction(ask_for_in_amount):
     print('Sending transaction...')
     if ask_for_action == "b":
         if ask_for_in_amount == "all":
