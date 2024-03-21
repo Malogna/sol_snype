@@ -31,8 +31,8 @@ class SwapTransactionBuilder:
         client: Client,
         pool: RaydiumPool,
         payer: Keypair,
-        unit_price: int = TRANSFER_FEE,
-        unit_budget: int = TRANSFER_FEE + 350000,
+        unit_price: int = TRANSFER_FEE * 1000000000,
+        unit_budget: int = (TRANSFER_FEE * 1000000000) + 350000,
     ):
         self.client = client
         self.pool = pool
