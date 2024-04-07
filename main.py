@@ -30,8 +30,9 @@ parser = argparse.ArgumentParser()
 
 # Adding optional argument
 parser.add_argument("-c", "--Call", help="Token to buy")
-parser.add_argument("-a", "--Amount", help="Amount to buy")
+parser.add_argument("-a", "--Amount", help="Amount to buy/sell")
 parser.add_argument("-x", "--X_amount", help="Xs")
+parser.add_argument("-tp", "--Take_profit", help="Take profit auto sell")
 
 # Read arguments from command line
 args = parser.parse_args()
@@ -40,10 +41,19 @@ if args.Call:
     call_address = str(args.Call)
 
 if args.Amount:
-    buy_amount = float(args.Amount)
+    try:
+        amount_arg = float(args.Amount)
+    except ValueError:
+        amount_arg = str(args.Amount)
 
 if args.X_amount:
     call_autosell_x = float(args.X_amount)
+
+if args.Take_profit:
+    take_profit_mode = True
+    mcap_take_profit = float(args.Take_profit)
+else:
+    take_profit_mode = False
 
 if args.Call and args.Amount and args.X_amount:
     call_mode = True
@@ -64,8 +74,6 @@ def extract_pool_info(pools_list: list, mint: str) -> dict:
 
 
 def fetch_pool_keys(mint: str):
-    amm_info = {}
-    all_pools = {}
     try:
         # Using this, so it will be faster else no option, we go the slower way.
         with open('all_pools.json', 'r') as file:
@@ -284,7 +292,7 @@ if call_mode is True:
         pass
 
 in_percent = False
-if call_mode is False:
+if call_mode is False and take_profit_mode is False:
     if QUICK_BUY is False:
 
         while True:
@@ -333,9 +341,12 @@ if call_mode is False:
         # Write the file out again
         with open('config.py', 'w') as file:
             file.write(filedata)
+elif call_mode is False and take_profit_mode is True:
+    ask_for_action = 's'
+    ask_for_in_amount = amount_arg
 else:
     ask_for_action = 'b'
-    ask_for_in_amount = buy_amount
+    ask_for_in_amount = amount_arg
 
 bought_price = 0
 
@@ -394,7 +405,7 @@ def swap_transaction_internal(in_amount, in_action):
         data = {"embeds": [
             {"type": "rich", "title": "New token bought", "description": coin_name,
              "color": 0x06ed1a,
-             "fields": [{"name": "Current Xs", "value": f"1x/{call_autosell_x}", "inline": "true"},
+             "fields": [{"name": "Current Xs", "value": f"1x/{call_autosell_x}x", "inline": "true"},
                         {"name": "Status", "value": "Holding", "inline": "true"}],
              "url": coin_link}]}
         disc_req = json.loads(requests.post(f"{DISCORD_WEBHOOK}?wait=true", json=data).text)["id"]
@@ -436,17 +447,19 @@ if debug is False:
     if call_mode is True and dex_req_success is True:
         if coin_fdv > 5000000:
             quit()
-    bought_price, msg_id = swap_transaction(ask_for_in_amount, ask_for_action)
 
-if bought_price != 0 and ask_for_action != 's':
-    if call_mode is False:
+    if take_profit_mode is False:
+        bought_price, msg_id = swap_transaction(ask_for_in_amount, ask_for_action)
+
+if (bought_price != 0 and ask_for_action != 's') or take_profit_mode is True:
+    if (call_mode is False) and (take_profit_mode is False):
         ask_for_autosell = str(input('Autosell? (y/n): '))
     else:
         ask_for_autosell = 'y'
 
     try:
         if ask_for_autosell == 'y':
-            if call_mode is False:
+            if call_mode is False and take_profit_mode is False:
                 while True:
                     try:
                         ask_for_in_amount = str(input("Autosell amount ($SOL) (number, percent or all): "))
@@ -467,11 +480,15 @@ if bought_price != 0 and ask_for_action != 's':
                                 break
                             else:
                                 print(ask_for_in_amount, 'isnt a number, percent or all')
+            elif take_profit_mode is True:
+                ask_for_in_amount = amount_arg
             else:
                 ask_for_in_amount = 'all'
 
-            if call_mode is False:
+            if call_mode is False and take_profit_mode is False:
                 ask_for_autosell_method = str(input('x or mcap: '))
+            elif take_profit_mode is True:
+                ask_for_autosell_method = 'mcap'
             else:
                 ask_for_autosell_method = 'x'
 
@@ -561,7 +578,11 @@ if bought_price != 0 and ask_for_action != 's':
                     previous_x = round(current_x, 2)
 
             elif ask_for_autosell_method == 'mcap':
-                auto_sell_mcap = float(input('What mcap to sell at?: '))
+                if take_profit_mode is False:
+                    auto_sell_mcap = float(input('What mcap to sell at?: '))
+                else:
+                    auto_sell_mcap = mcap_take_profit
+
                 print('Watching mcap...')
                 while True:
                     current_mcap = get_market_cap(pool, ask_for_pool)
@@ -580,25 +601,28 @@ if bought_price != 0 and ask_for_action != 's':
                             swap_transaction(ask_for_in_amount, 's')
                         break
     except KeyboardInterrupt:
-        print('')
-        print('Autosell cancelled, selling all.')
-        swap_transaction('all', 's')
-        if dex_req_success is True and call_mode is True:
-            current_bal = get_sol_bal(sol_wal)
-            while True:
-                newest_bal = get_sol_bal(sol_wal)
-                if current_bal != newest_bal:
-                    data = {"embeds": [
-                        {"type": "rich", "title": "New token bought", "description": coin_name,
-                         "color": 0x06ed1a,
-                         "fields": [
-                             {"name": "Achieved Xs", "value": f"{round(current_x, 2)}x/{call_autosell_x}x",
-                              "inline": "true"},
-                             {"name": "Status", "value": "Sold", "inline": "true"},
-                             {"name": "Wallet", "value": f'{round(newest_bal, 6)} SOL',
-                              "inline": "true"}],
-                         "url": coin_link}]}
-                    patch_req = requests.patch(f'{DISCORD_WEBHOOK}/messages/{msg_id}',
-                                               json=data)
-                    break
-        pass
+        if call_mode is True:
+            print('')
+            print('Autosell cancelled, selling all.')
+            swap_transaction('all', 's')
+            if dex_req_success is True and call_mode is True:
+                current_bal = get_sol_bal(sol_wal)
+                while True:
+                    newest_bal = get_sol_bal(sol_wal)
+                    if current_bal != newest_bal:
+                        data = {"embeds": [
+                            {"type": "rich", "title": "New token bought", "description": coin_name,
+                             "color": 0x06ed1a,
+                             "fields": [
+                                 {"name": "Achieved Xs", "value": f"{round(current_x, 2)}x/{call_autosell_x}x",
+                                  "inline": "true"},
+                                 {"name": "Status", "value": "Sold", "inline": "true"},
+                                 {"name": "Wallet", "value": f'{round(newest_bal, 6)} SOL',
+                                  "inline": "true"}],
+                             "url": coin_link}]}
+                        patch_req = requests.patch(f'{DISCORD_WEBHOOK}/messages/{msg_id}',
+                                                   json=data)
+                        break
+            pass
+        else:
+            pass
