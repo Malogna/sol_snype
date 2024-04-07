@@ -3,7 +3,10 @@ from solana.rpc.commitment import Commitment
 from solana.rpc.types import TokenAccountOpts
 from solders.pubkey import Pubkey
 from solders.signature import Signature
-from solders.transaction import Transaction, VersionedTransaction
+from solders.transaction import VersionedTransaction
+from timeout_function_decorator import timeout
+
+from config import TIMEOUT
 
 
 def get_token_account_balance(
@@ -55,6 +58,7 @@ def send_transaction(client: Client, transaction: VersionedTransaction):
     return client.send_transaction(transaction)
 
 
+@timeout(TIMEOUT, TimeoutError)
 def confirm_transaction(
     client: Client,
     txn_signature: Signature,
