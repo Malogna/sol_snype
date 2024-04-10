@@ -414,6 +414,7 @@ def swap_transaction_internal(in_amount, in_action):
 
 
 def swap_transaction(in_amount, in_action):
+    token_bal_start = sol_wal.get_balance(pool)
     while True:
         try:
             bought_price, msg_id = swap_transaction_internal(in_amount, in_action)
@@ -425,15 +426,22 @@ def swap_transaction(in_amount, in_action):
             if '429 Too Many Requests' in tb:
                 print('Too many requests, sleep for 2 sec and try again...')
                 time.sleep(2)
+                token_bal = sol_wal.get_balance(pool)
+                if in_action == 'b':
+                    if token_bal > token_bal_start:
+                        break
+                if in_action == 's:':
+                    if token_bal < token_bal_start:
+                        break
             else:
                 print('Waiting 10 sec and checking if TXN went through..')
                 time.sleep(10)
                 token_bal = sol_wal.get_balance(pool)
                 if in_action == 'b':
-                    if token_bal > 0:
+                    if token_bal > token_bal_start:
                         break
                 if in_action == 's:':
-                    if token_bal == 0:
+                    if token_bal < token_bal_start:
                         break
         except TimeoutError:
             print(f'{TIMEOUT}s passed, no transaction, trying again...')
