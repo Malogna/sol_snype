@@ -22,8 +22,8 @@ class Swap:
         pool: RaydiumPool,
         virtual_amount: int = 1,
         queue_size: int = 100,
-        rate_limit_seconds: float = 0.1,
-        rate_limit_sleep_seconds: float = 0.01,
+        rate_limit_seconds: float = .0,
+        rate_limit_sleep_seconds: float = .0,
         confirm_tx_sleep_seconds: float = 1.0,
     ):
         self.client = client
