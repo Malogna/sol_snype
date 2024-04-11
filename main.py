@@ -444,6 +444,13 @@ def swap_transaction(in_amount, in_action):
                     if token_bal < token_bal_start:
                         break
         except TimeoutError:
+            token_bal = sol_wal.get_balance(pool)
+            if in_action == 'b':
+                if token_bal > token_bal_start:
+                    break
+            if in_action == 's:':
+                if token_bal < token_bal_start:
+                    break
             print(f'{TIMEOUT}s passed, no transaction, trying again...')
             time.sleep(1)
         except KeyboardInterrupt:
