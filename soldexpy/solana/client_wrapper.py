@@ -39,17 +39,9 @@ def get_token_accounts_by_owner(
 
 
 def get_latest_blockhash(client: Client):
-    if client.blockhash_cache:
-        try:
-            recent_blockhash = client.blockhash_cache.get()
-        except:
-            recent_blockhash = client.get_latest_blockhash(
-                client.commitment
-            ).value.blockhash
-    else:
-        recent_blockhash = client.get_latest_blockhash(
-            client.commitment
-        ).value.blockhash
+    recent_blockhash = client.get_latest_blockhash(
+        client.commitment
+    ).value.blockhash
 
     return recent_blockhash
 

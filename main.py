@@ -176,8 +176,8 @@ keypair = Keypair.from_bytes(base58.b58decode(PRIVATE_KEY))
 client = Client(RPC)
 sol_wal = Wallet(client, keypair.pubkey())
 
-print(text2art("yosharu-sol-snype"))
-
+print(text2art("snype", font="lean"))
+print(f'RPC: {RPC}')
 print(f'Address: {keypair.pubkey()} ({get_sol_bal(sol_wal)} SOL)')
 
 # get pool
@@ -256,16 +256,15 @@ if dex_req_success is True:
 
 print('Connecting to Raydium via RPC...', end='\r')
 if pool_init is False:
-    try:
-        pool = RaydiumPool(client, ask_for_pool)
-    except (RPCException, SolanaRpcException):
-        tb = traceback.format_exc()
-        print(tb)
-        print(Fore.RED + 'RPC error, trying again...')
-        if call_mode is True:
-            if '429 Too Many Requests' in tb:
-                print('Too many requests, sleep for 2 sec and try again...')
-                time.sleep(1)
+    while True:
+        try:
+            pool = RaydiumPool(client, ask_for_pool)
+            break
+        except (RPCException, SolanaRpcException):
+            tb = traceback.format_exc()
+            # print(tb)
+            print(Fore.RED + 'RPC error, trying again...')
+            time.sleep(1)
 # initialize Swap
 swap = Swap(client, pool)
 print(Fore.GREEN + 'Connected to Raydium!           ')
@@ -421,7 +420,7 @@ def swap_transaction(in_amount, in_action):
             return bought_price, msg_id
         except (RPCException, SolanaRpcException):
             tb = traceback.format_exc()
-            print(tb)
+            # print(tb)
             print(Fore.RED + 'RPC error, trying again...')
             if '429 Too Many Requests' in tb:
                 print('Too many requests, sleep for 2 sec and try again...')
@@ -464,7 +463,11 @@ if debug is False:
             quit()
 
     if take_profit_mode is False:
-        bought_price, msg_id = swap_transaction(ask_for_in_amount, ask_for_action)
+        try:
+            bought_price, msg_id = swap_transaction(ask_for_in_amount, ask_for_action)
+        except TypeError:
+            bought_price = get_token_price_native(pool)
+            msg_id = 0
 
 if (bought_price != 0 and ask_for_action != 's') or take_profit_mode is True:
     if (call_mode is False) and (take_profit_mode is False):
