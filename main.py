@@ -424,32 +424,43 @@ def swap_transaction(in_amount, in_action):
             # print(tb)
             print(Fore.RED + 'RPC error, trying again...')
             if '429 Too Many Requests' in tb:
-                print('Too many requests, sleep for 2 sec and try again...')
-                time.sleep(2)
+                print('Too many requests, sleep for 5 sec and try again...')
+                time.sleep(5)
                 token_bal = sol_wal.get_balance(pool)
                 if in_action == 'b':
                     if token_bal > token_bal_start:
+                        print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET)
                         break
                 if in_action == 's:':
                     if token_bal < token_bal_start:
+                        print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET)
                         break
             else:
                 print('Waiting 10 sec and checking if TXN went through..')
                 time.sleep(10)
-                token_bal = sol_wal.get_balance(pool)
+                while True:
+                    try:
+                        token_bal = sol_wal.get_balance(pool)
+                        break
+                    except (RPCException, SolanaRpcException, HTTPStatusError):
+                        time.sleep(1)
                 if in_action == 'b':
                     if token_bal > token_bal_start:
+                        print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET)
                         break
                 if in_action == 's:':
                     if token_bal < token_bal_start:
+                        print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET)
                         break
         except TimeoutError:
             token_bal = sol_wal.get_balance(pool)
             if in_action == 'b':
                 if token_bal > token_bal_start:
+                    print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET)
                     break
             if in_action == 's:':
                 if token_bal < token_bal_start:
+                    print(Fore.GREEN + 'Success! Transaction confirmed.' + Fore.RESET)
                     break
             print(f'{TIMEOUT}s passed, no transaction, trying again...')
             time.sleep(1)
