@@ -7,6 +7,7 @@ import requests
 
 from art import text2art
 from colorama import Fore
+from httpx import HTTPStatusError
 from solana.exceptions import SolanaRpcException
 from solana.rpc.api import Client
 from solders.keypair import Keypair
@@ -418,7 +419,7 @@ def swap_transaction(in_amount, in_action):
         try:
             bought_price, msg_id = swap_transaction_internal(in_amount, in_action)
             return bought_price, msg_id
-        except (RPCException, SolanaRpcException):
+        except (RPCException, SolanaRpcException, HTTPStatusError):
             tb = traceback.format_exc()
             # print(tb)
             print(Fore.RED + 'RPC error, trying again...')
